@@ -1,5 +1,6 @@
-DECLARE @Salaries TABLE (ID INT IDENTITY(1,1), AMOUNT DECIMAL(10,2));
+п»їDECLARE @Salaries TABLE (ID INT IDENTITY(1,1), AMOUNT DECIMAL(10,2));
 DECLARE @TaxRate TABLE (
+		DATEFROM DATE,
 		AMOUNTFROM DECIMAL(10, 2),
 		AMOUNTTO DECIMAL(10, 2),
 		RATE INT);
@@ -7,30 +8,36 @@ DECLARE @TaxRate TABLE (
 INSERT INTO @Salaries (AMOUNT)
 VALUES (4000), (10000), (17000), (100), (12000), (100);
 
-INSERT INTO @TaxRate(AMOUNTFROM, AMOUNTTO, RATE)
-VALUES (0, 4999.99, 10), (5000, 15000, 15), (15000.01, 9999999, 20);
+INSERT INTO @TaxRate(DATEFROM, AMOUNTFROM, AMOUNTTO, RATE)
+VALUES ('2025-01-01', 0, 4999.99, 10), 
+       ('2025-01-01', 5000, 15000, 15), 
+	   ('2025-01-01', 15000.01, 9999999, 20),
+	   ('2026-01-01', 0, 4999.99, 11), 
+       ('2026-01-01', 5000, 15000, 16), 
+	   ('2026-01-01', 15000.01, 9999999, 21),
+	   ('2026-07-01', 0, 4999.99, 13), 
+       ('2026-07-01', 5000, 15000, 19), 
+	   ('2026-07-01', 15000.01, 9999999, 24);
 
 DECLARE @result NVARCHAR(MAX);
---Працівник #<номер>: Зарплата = <сума>, Податок = <сума>, Статус = <текст>
+DECLARE @calcDate DATE = '2027-07-22';
+--РџСЂР°С†С–РІРЅРёРє #<РЅРѕРјРµСЂ>: Р—Р°СЂРїР»Р°С‚Р° = <СЃСѓРјР°>, РџРѕРґР°С‚РѕРє = <СЃСѓРјР°>, РЎС‚Р°С‚СѓСЃ = <С‚РµРєСЃС‚>
 SELECT 
-     N'Працівник #:' + CAST(T.ID AS NVARCHAR) +
-	 N'Зарплата = ' + CAST (T.AMOUNT AS NVARCHAR) +
-	 N', Податок = ' + CAST(T.AMOUNT * T.RATE / 100 AS NVARCHAR) +
-	 N', Статус = ' + CASE 
-						   WHEN RATE = 10 THEN N'Низький податок'
-						   WHEN RATE = 15 THEN N'Середній податок'
-						   ELSE N'Високий податок'
+     N'РџСЂР°С†С–РІРЅРёРє #:' + CAST(T.ID AS NVARCHAR) +
+	 N'Р—Р°СЂРїР»Р°С‚Р° = ' + CAST (T.AMOUNT AS NVARCHAR) +
+	 N', РџРѕРґР°С‚РѕРє = ' + CAST(T.AMOUNT * T.RATE / 100 AS NVARCHAR) +
+	 N', РЎС‚Р°С‚СѓСЃ = ' + CASE 
+						   WHEN RATE = 10 THEN N'РќРёР·СЊРєРёР№ РїРѕРґР°С‚РѕРє'
+						   WHEN RATE = 15 THEN N'РЎРµСЂРµРґРЅС–Р№ РїРѕРґР°С‚РѕРє'
+						   ELSE N'Р’РёСЃРѕРєРёР№ РїРѕРґР°С‚РѕРє'
 					   END
   FROM (
 		SELECT ID,
 			   AMOUNT,
-			   (SELECT RATE FROM @TaxRate WHERE AMOUNT BETWEEN AMOUNTFROM AND AMOUNTTO) AS RATE
-			   /*(SELECT AMOUNT * RATE / 100 FROM @TaxRate WHERE AMOUNT BETWEEN AMOUNTFROM AND AMOUNTTO) AS RATEAMOUNT,
-			   (SELECT CASE 
-						   WHEN RATE = 10 THEN N'Низький податок'
-						   WHEN RATE = 15 THEN N'Середній податок'
-						   ELSE N'Високий податок'
-					   END
-					  FROM @TaxRate WHERE AMOUNT BETWEEN AMOUNTFROM AND AMOUNTTO) AS RATETEXT*/
+			   (SELECT TOP 1 RATE 
+			      FROM @TaxRate 
+				 WHERE AMOUNT BETWEEN AMOUNTFROM AND AMOUNTTO
+				   AND DATEFROM <= @calcDate ORDER BY DATEFROM DESC
+				) AS RATE
 		  FROM @Salaries
       ) AS T;
